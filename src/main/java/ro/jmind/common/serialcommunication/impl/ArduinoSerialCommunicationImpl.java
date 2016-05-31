@@ -35,12 +35,12 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 	private static int counter = 0;
 	//@formatter:off
 	private static final String PORT_NAMES[] = { 
-			"/dev/tty.usbmodem", // Mac OS X
+//			"/dev/tty.usbmodem", // Mac OS X
 //			"/dev/usbdev", // Linux
-			"/dev/tty", // Linux
+//			"/dev/tty", // Linux
 //			"/dev/serial", // Linux
 			"/dev/ttyACM0", // Linux
-			"/dev/ttyS0", // Linux
+//			"/dev/ttyS0", // Linux
 			"COM5" // Windows
 	};
 	//@formatter:on		    
