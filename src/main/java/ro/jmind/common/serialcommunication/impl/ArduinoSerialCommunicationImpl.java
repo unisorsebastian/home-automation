@@ -37,7 +37,7 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 	private static final String PORT_NAMES[] = { 
 //			"/dev/tty.usbmodem", // Mac OS X
 //			"/dev/usbdev", // Linux
-//			"/dev/tty", // Linux
+			"/dev/tty", // Linux
 //			"/dev/serial", // Linux
 			"/dev/ttyACM0", // Linux
 			"/dev/ttyS0", // Linux
