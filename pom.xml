@@ -148,7 +148,7 @@
 					<path>${project.build.finalName}</path>
 					<update>true</update>
 					<url>http://localhost:8081/manager/text</url>
-					<server>i7acer</server>
+					<server>local</server>
 				</configuration>
 			</plugin>
 		</plugins>
