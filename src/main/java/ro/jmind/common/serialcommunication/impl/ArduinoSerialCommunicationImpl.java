@@ -20,6 +20,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 
+import gnu.io.CommDriver;
+import gnu.io.CommPort;
 import gnu.io.CommPortIdentifier;
 import gnu.io.SerialPort;
 import gnu.io.SerialPortEvent;
@@ -122,28 +124,31 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 			}
 			// Enumerate system ports and try connecting to Arduino over each
 			//
-			portEnum = CommPortIdentifier.getPortIdentifiers();
-			while (portId == null && portEnum.hasMoreElements()) {
-				// Iterate through your host computer's serial port IDs
-				CommPortIdentifier currPortId = (CommPortIdentifier) portEnum.nextElement();
-				for (String portName : PORT_NAMES) {
-					LOG.info("Try connection on port:" + currPortId.getName());
-					if (currPortId.getName().equals(portName) || currPortId.getName().startsWith(portName)) {
-						LOG.debug("Try to connect to the Arduino on this port:"+ currPortId.getName());
-						LOG.debug("Open serial port");
-						serialPort = (SerialPort) currPortId.open(appName, TIME_OUT);
-						portId = currPortId;
-						LOG.info("Connected on port" + currPortId.getName());
-						break;
-					}
-				}
-			}
-
-			if (portId == null || serialPort == null) {
-				LOG.error("*********Could not connect to Arduino - portId:"+portId+" serialPort:"+serialPort);
-				return false;
-			}
-
+//			portEnum = CommPortIdentifier.getPortIdentifiers();
+//			while (portId == null && portEnum.hasMoreElements()) {
+//				// Iterate through your host computer's serial port IDs
+//				CommPortIdentifier currPortId = (CommPortIdentifier) portEnum.nextElement();
+//				for (String portName : PORT_NAMES) {
+//					LOG.info("Try connection on port:" + currPortId.getName());
+//					if (currPortId.getName().equals(portName) || currPortId.getName().startsWith(portName)) {
+//						LOG.debug("Try to connect to the Arduino on this port:"+ currPortId.getName());
+//						LOG.debug("Open serial port");
+//						serialPort = (SerialPort) currPortId.open(appName, TIME_OUT);
+//						portId = currPortId;
+//						LOG.info("Connected on port" + currPortId.getName());
+//						break;
+//					}
+//				}
+//			}
+//			
+//			if (portId == null || serialPort == null) {
+//				LOG.error("*********Could not connect to Arduino - portId:"+portId+" serialPort:"+serialPort);
+//				return false;
+//			}
+			
+			//CommPortIdentifier.addPortName("/dev/ttyACM0", CommPortIdentifier.PORT_SERIAL, arg2);
+			CommPortIdentifier portIdentifier = CommPortIdentifier.getPortIdentifier("/dev/ttyACM0");
+			serialPort = (SerialPort)portIdentifier.open(appName, TIME_OUT);
 			// set port parameters
 			LOG.debug("port params, data_rate:");
 			serialPort.setSerialPortParams(DATA_RATE, SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
