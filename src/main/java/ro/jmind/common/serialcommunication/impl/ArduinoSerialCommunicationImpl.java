@@ -40,7 +40,7 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 //			"/dev/tty", // Linux
 //			"/dev/serial", // Linux
 			"/dev/ttyACM0", // Linux
-//			"/dev/ttyS0", // Linux
+			"/dev/ttyS0", // Linux
 			"COM5" // Windows
 	};
 	//@formatter:on		    
@@ -51,7 +51,7 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 	private SerialPort serialPort = null;
 	private BufferedReader input;
 	
-	private String appName;
+	private String appName="web-app";
 	private static final int TIME_OUT = 5000; // Port open timeout
 	private static final int DATA_RATE = 9600; // Arduino serial port
 	private boolean isConnected = false;
@@ -114,18 +114,23 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 		try {
 			CommPortIdentifier portId = null;
 			Enumeration portEnum = CommPortIdentifier.getPortIdentifiers();
-
+			while(portEnum.hasMoreElements()){
+				LOG.debug("port found by CommPortIdentifier:"+portEnum.nextElement());
+				for(String s:PORT_NAMES){
+					LOG.debug("expected port name:"+s);
+				}
+			}
 			// Enumerate system ports and try connecting to Arduino over each
 			//
+			portEnum = CommPortIdentifier.getPortIdentifiers();
 			while (portId == null && portEnum.hasMoreElements()) {
 				// Iterate through your host computer's serial port IDs
-				//
 				CommPortIdentifier currPortId = (CommPortIdentifier) portEnum.nextElement();
 				for (String portName : PORT_NAMES) {
 					LOG.info("Try connection on port:" + currPortId.getName());
 					if (currPortId.getName().equals(portName) || currPortId.getName().startsWith(portName)) {
-						// Try to connect to the Arduino on this port
-						// Open serial port
+						LOG.debug("Try to connect to the Arduino on this port:"+ currPortId.getName());
+						LOG.debug("Open serial port");
 						serialPort = (SerialPort) currPortId.open(appName, TIME_OUT);
 						portId = currPortId;
 						LOG.info("Connected on port" + currPortId.getName());
@@ -140,6 +145,7 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 			}
 
 			// set port parameters
+			LOG.debug("port params, data_rate:");
 			serialPort.setSerialPortParams(DATA_RATE, SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
 
 			// add event listeners
@@ -165,6 +171,7 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 	// This should be called when you stop using the port
 	//
 	public synchronized void close() {
+		LOG.debug("**********close connection**********");
 		if (serialPort != null) {
 			serialPort.removeEventListener();
 			serialPort.close();
@@ -186,12 +193,10 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 
 	@Override
 	public void writeToSerial(String data) {
-		LOG.debug("------write data-------:counter:" + counter);
 		if (!isConnected) {
 			LOG.debug("is not connected->isConnected:"+isConnected);
 			isConnected = initialize();
 		} else {
-			LOG.debug("sending data...");
 			sendData(data);
 		}
 	}
