@@ -102,7 +102,7 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 		ObjectMapper mapper = new ObjectMapper();
 		ArduinoResponse response = mapper.readValue(inputLine, ArduinoResponse.class);
 		String requestEntity = response.getArduinoRequest().getRequestEntity();
-		Object[] responseArray = response.getResponse();
+		Thermometer[] responseArray = null;//response.getResponse();
 		SimpleModule module = new SimpleModule();
 		if(requestEntity == "thermometer"){
 			module.addDeserializer(Thermometer[].class, new ThermometerDeserializer());
