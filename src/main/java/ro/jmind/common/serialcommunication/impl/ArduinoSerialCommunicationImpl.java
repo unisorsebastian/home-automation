@@ -41,8 +41,8 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 //			"/dev/usbdev", // Linux
 //			"/dev/tty", // Linux
 //			"/dev/serial", // Linux
-			"/dev/ttyACM0", // Linux
-			"/dev/ttyS0", // Linux
+//			"/dev/ttyACM0", // Linux
+			"/dev/ttyS80", // Linux
 			"COM5" // Windows
 	};
 	//@formatter:on		    
