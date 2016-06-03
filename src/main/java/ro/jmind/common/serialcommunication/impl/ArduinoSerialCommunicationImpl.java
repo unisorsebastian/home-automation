@@ -11,10 +11,12 @@ import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
@@ -67,12 +69,11 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 	// Handle serial port event
 	@Override
 	public synchronized void serialEvent(SerialPortEvent oEvent) {
-		LOG.info("Event received: " + oEvent.toString());
+		LOG.info("received event from arduino: " + oEvent.toString());
 		InputStream arduinoInputStream = null;
 		InputStreamReader isr = null;
 		BufferedReader br = null;
 		StringBuilder sb = new StringBuilder();
-		char c = '\0';
 		String inputLine = null;
 		try {
 			switch (oEvent.getEventType()) {
@@ -81,22 +82,12 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 					arduinoInputStream = serialPort.getInputStream();
 					isr = new InputStreamReader(arduinoInputStream);
 					br = new BufferedReader(isr);
-					
 					sb.append(br.readLine());
 				}
 				inputLine = sb.toString();
-				LOG.info(inputLine);
-				ObjectMapper mapper = new ObjectMapper();
-				ArduinoResponse response = mapper.readValue(inputLine, ArduinoResponse.class);
-				String requestEntity = response.getArduinoRequest().getRequestEntity();
-				Object[] responseArray = response.getResponse();
+				LOG.info("received string from arduino:"+inputLine);
 				
-				SimpleModule module = new SimpleModule();
-				module.addDeserializer(Thermometer[].class, new ThermometerDeserializer());
-				mapper.registerModule(module);
-				
-				Thermometer[] t = mapper.readValue(inputLine, Thermometer[].class);
-				response.setResponse(t);
+				ArduinoResponse response = mapResponse(inputLine);
 				arduinoResponseService.setResponse(response);
 				break;
 			default:
@@ -105,6 +96,21 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 		} catch (Exception e) {
 			LOG.error(e.toString());
 		}
+	}
+
+	private ArduinoResponse mapResponse(String inputLine) throws IOException, JsonParseException, JsonMappingException {
+		ObjectMapper mapper = new ObjectMapper();
+		ArduinoResponse response = mapper.readValue(inputLine, ArduinoResponse.class);
+		String requestEntity = response.getArduinoRequest().getRequestEntity();
+		Object[] responseArray = response.getResponse();
+		SimpleModule module = new SimpleModule();
+		if(requestEntity == "thermometer"){
+			module.addDeserializer(Thermometer[].class, new ThermometerDeserializer());
+			mapper.registerModule(module);
+			responseArray = mapper.readValue(inputLine, Thermometer[].class);
+		}
+		response.setResponse(responseArray);
+		return response;
 	}
 
 	private boolean initialize() {
