@@ -1,2 +1,10 @@
-empty-test:w
+https://www.raspberrypi.org/forums/viewtopic.php?t=32185
 
+Hi,
+Try this command:
+#######################################
+##sudo ln -s /dev/ttyACM0 /dev/ttyS80##
+#######################################
+and use ttyS80, other option is pi4j for work directly with ttyAMA0
+http://pi4j.com/example/serial.html
+i tested sucessfully pi4j for communicate raspi and arduino.
