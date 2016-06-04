@@ -1,7 +1,6 @@
 package ro.jmind.common.serialcommunication.impl;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -9,34 +8,29 @@ import java.util.Enumeration;
 
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-
-import gnu.io.CommDriver;
-import gnu.io.CommPort;
 import gnu.io.CommPortIdentifier;
 import gnu.io.SerialPort;
 import gnu.io.SerialPortEvent;
 import gnu.io.SerialPortEventListener;
 import ro.jmind.common.serialcommunication.ArduinoSerialCommunication;
 import ro.jmind.common.service.arduino.ArduinoResponseService;
-import ro.jmind.model.ArduinoResponse;
-import ro.jmind.model.Thermometer;
 
 @Component
+@Configuration
+@PropertySource(value = { "classpath:app.properties" }, ignoreResourceNotFound = true)
 public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunication, SerialPortEventListener {
 	private static final Logger LOG = Logger.getLogger(ArduinoSerialCommunicationImpl.class);
-	private static int counter = 0;
+	@Value("${app.name}")
+	private static String APP_NAME;// = "web-app";
+	private static int TIME_OUT = 5000; // Port open timeout
+	private static final int DATA_RATE = 9600; // Arduino serial port
+
+	@Value("#{'${port.list}'.split(',')}")
 	//@formatter:off
 	private static final String PORT_NAMES[] = { 
 //			"/dev/tty.usbmodem", // Mac OS X
@@ -48,17 +42,12 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 			"COM5" // Windows
 	};
 	//@formatter:on		    
+	private static int counter = 0;
+	private boolean isConnected = false;
+	private SerialPort serialPort = null;
 
 	@Autowired
 	ArduinoResponseService arduinoResponseService;
-
-	private SerialPort serialPort = null;
-	private BufferedReader input;
-	
-	private String appName="web-app";
-	private static final int TIME_OUT = 5000; // Port open timeout
-	private static final int DATA_RATE = 9600; // Arduino serial port
-	private boolean isConnected = false;
 
 	public ArduinoSerialCommunicationImpl() {
 		counter++;
@@ -66,15 +55,28 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 		LOG.debug("ArduinoSerialCommunication instance counter:" + counter);
 	}
 
-	// Handle serial port event
+	@Override
+	public void writeToSerial(String data) {
+		if (!isConnected) {
+			LOG.debug("is not connected->isConnected:" + isConnected);
+			isConnected = initialize();
+		} else {
+			sendData(data);
+		}
+	}
+
+	/**
+	 * Handle serial port event
+	 */
 	@Override
 	public synchronized void serialEvent(SerialPortEvent oEvent) {
 		LOG.info("received event from arduino: " + oEvent.toString());
+
 		InputStream arduinoInputStream = null;
 		InputStreamReader isr = null;
 		BufferedReader br = null;
-		StringBuilder sb = new StringBuilder();
 		String inputLine = null;
+		StringBuffer sb = new StringBuffer();
 		try {
 			switch (oEvent.getEventType()) {
 			case SerialPortEvent.DATA_AVAILABLE:
@@ -82,13 +84,12 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 					arduinoInputStream = serialPort.getInputStream();
 					isr = new InputStreamReader(arduinoInputStream);
 					br = new BufferedReader(isr);
-					sb.append(br.readLine());
+					inputLine = br.readLine();
 				}
-				inputLine = sb.toString();
-				LOG.info("received string from arduino:"+inputLine);
-				
-				ArduinoResponse response = mapResponse(inputLine);
-				arduinoResponseService.setResponse(response);
+				// inputLine = sb.toString();
+				LOG.info("received string from arduino:" + inputLine);
+				// populate with received data
+				arduinoResponseService.setResponseAsString(inputLine);
 				break;
 			default:
 				break;
@@ -98,22 +99,24 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 		}
 	}
 
-	private ArduinoResponse mapResponse(String inputLine) throws IOException, JsonParseException, JsonMappingException {
-		ObjectMapper mapper = new ObjectMapper();
-		ArduinoResponse response = mapper.readValue(inputLine, ArduinoResponse.class);
-		String requestEntity = response.getArduinoRequest().getRequestEntity();
-		Thermometer[] responseArray = null;//response.getResponse();
-		SimpleModule module = new SimpleModule();
-		if(requestEntity == "thermometer"){
-			module.addDeserializer(Thermometer[].class, new ThermometerDeserializer());
-			mapper.registerModule(module);
-			responseArray = mapper.readValue(inputLine, Thermometer[].class);
+	/**
+	 * This should be called when you stop using the port
+	 */
+	private synchronized void close() {
+		LOG.debug("**********close connection**********");
+		if (serialPort != null) {
+			serialPort.removeEventListener();
+			serialPort.close();
 		}
-		response.setResponse(responseArray);
-		return response;
 	}
 
+	@SuppressWarnings("rawtypes")
 	private boolean initialize() {
+		if (counter > 1) {
+			String message = "too many connections:" + counter;
+			LOG.debug(message);
+			throw new Error(message);
+		}
 		LOG.debug("initialize");
 		if (serialPort != null) {
 			LOG.debug("calling close");
@@ -121,15 +124,17 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 		}
 		try {
 			CommPortIdentifier portId = null;
-			Enumeration portEnum = CommPortIdentifier.getPortIdentifiers();
-			while(portEnum.hasMoreElements()){
-				LOG.debug("port found by CommPortIdentifier:"+portEnum.nextElement());
-				for(String s:PORT_NAMES){
-					LOG.debug("expected port name:"+s);
+			Enumeration portEnum = null;
+			if (LOG.isDebugEnabled()) {
+				portEnum = CommPortIdentifier.getPortIdentifiers();
+				while (portEnum.hasMoreElements()) {
+					LOG.debug("initialize -> port found by CommPortIdentifier:" + portEnum.nextElement());
+					for (String s : PORT_NAMES) {
+						LOG.debug("expected port name:" + s);
+					}
 				}
 			}
-			// Enumerate system ports and try connecting to Arduino over each
-			//
+			// Enumerate system ports and try connecting to Arduino
 			portEnum = CommPortIdentifier.getPortIdentifiers();
 			while (portId == null && portEnum.hasMoreElements()) {
 				// Iterate through your host computer's serial port IDs
@@ -137,26 +142,20 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 				for (String portName : PORT_NAMES) {
 					LOG.info("Try connection on port:" + currPortId.getName());
 					if (currPortId.getName().equals(portName) || currPortId.getName().startsWith(portName)) {
-						LOG.debug("Try to connect to the Arduino on this port:"+ currPortId.getName());
 						LOG.debug("Open serial port");
-						serialPort = (SerialPort) currPortId.open(appName, TIME_OUT);
+						serialPort = (SerialPort) currPortId.open(APP_NAME, TIME_OUT);
 						portId = currPortId;
 						LOG.info("Connected on port" + currPortId.getName());
 						break;
 					}
 				}
 			}
-			
+
 			if (portId == null || serialPort == null) {
-				LOG.error("*********Could not connect to Arduino - portId:"+portId+" serialPort:"+serialPort);
+				LOG.error("*********Could not connect to Arduino - portId:" + portId + " serialPort:" + serialPort);
 				return false;
 			}
-			
-			//CommPortIdentifier.addPortName("/dev/ttyACM0", CommPortIdentifier.PORT_SERIAL, arg2);
-//			CommPortIdentifier portIdentifier = CommPortIdentifier.getPortIdentifier("/dev/ttyACM0");
-//			serialPort = (SerialPort)portIdentifier.open(appName, TIME_OUT);
-			// set port parameters
-			LOG.debug("port params, data_rate:");
+
 			serialPort.setSerialPortParams(DATA_RATE, SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
 
 			// add event listeners
@@ -164,11 +163,11 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 			serialPort.notifyOnDataAvailable(true);
 
 			// Give the Arduino some time
-			try {
-				LOG.debug("give Arduino some time");
-				Thread.sleep(2000);
-			} catch (InterruptedException ie) {
-				LOG.debug("thread sleep exception",ie);
+			LOG.debug("give Arduino some time for connection");
+			long currentTimeMillis = System.currentTimeMillis();
+			while (true) {
+				if (System.currentTimeMillis() < currentTimeMillis + 3000)
+					break;
 			}
 
 			return true;
@@ -178,71 +177,16 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 		return false;
 	}
 
-	//
-	// This should be called when you stop using the port
-	//
-	public synchronized void close() {
-		LOG.debug("**********close connection**********");
-		if (serialPort != null) {
-			serialPort.removeEventListener();
-			serialPort.close();
-		}
-	}
-
 	private void sendData(String data) {
-		OutputStream output=null;
+		OutputStream output = null;
 		try {
-			LOG.info("Sending data: '" + data + "'");
+			LOG.debug("Sending data: '" + data + "'");
 			// open the streams and send the "y" character
 			output = serialPort.getOutputStream();
-			LOG.debug("outputStream:"+output);
+			LOG.debug("outputStream:" + output);
 			output.write(data.getBytes());
 		} catch (Exception e) {
-			LOG.error("unable to send data",e);
+			LOG.error("unable to send data", e);
 		}
 	}
-
-	@Override
-	public void writeToSerial(String data) {
-		if (!isConnected) {
-			LOG.debug("is not connected->isConnected:"+isConnected);
-			isConnected = initialize();
-		} else {
-			sendData(data);
-		}
-	}
-
-	//@formatter:off
-	/*public static void main(String[] args) throws Exception {
-        ArduinoTest1 test = new ArduinoTest1();
-        boolean continueComunication = true;
-        if ( test.initialize() ) {
-        	while(continueComunication){
-        		test.sendData("getTemperatures|");
-                try { Thread.sleep(10000); } catch (InterruptedException ie) {}
-                test.sendData("lightOn|");
-                try { Thread.sleep(10000); } catch (InterruptedException ie) {}	
-        	}
-            
-            test.close();
-        }
-
-        // Wait 5 seconds then shutdown
-        try { Thread.sleep(2000); } catch (InterruptedException ie) {}
-    }*/
-	//@formatter:on
-
-}
-
-class ThermometerDeserializer extends JsonDeserializer<Thermometer[]> {
-	 
-    
-    public Thermometer[] deserialize(JsonParser jp, DeserializationContext ctxt) 
-      throws IOException, JsonProcessingException {
-        JsonNode node = jp.getCodec().readTree(jp);
-        String tempArrayAsString = ((ArrayNode) node.get("response")).toString();
-        ObjectMapper mapper = new ObjectMapper();
-        Thermometer[] response = mapper.readValue(tempArrayAsString, Thermometer[].class);
-        return response;
-    }
 }
