@@ -1,7 +1,11 @@
 package ro.jmind.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class ArduinoRequest {
+	@JsonProperty(Global.REQUEST_ENTITY)
 	private String requestEntity;
+	@JsonProperty(Global.TIMESTAMP)
 	private Long timestamp;
 
 	public String getRequestEntity() {

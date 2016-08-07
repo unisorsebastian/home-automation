@@ -13,18 +13,18 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
  
     @Autowired
     public void configureGlobalSecurity(AuthenticationManagerBuilder auth) throws Exception {
-        auth.inMemoryAuthentication().withUser("bill").password("abc123").roles("USER");
-        auth.inMemoryAuthentication().withUser("admin").password("root123").roles("ADMIN");
-        auth.inMemoryAuthentication().withUser("dba").password("root123").roles("ADMIN","DBA");//dba have two roles.
+        auth.inMemoryAuthentication().withUser("sebastian").password("12345").roles("USER");
+        auth.inMemoryAuthentication().withUser("admin").password("12345").roles("ADMIN");
+        auth.inMemoryAuthentication().withUser("dba").password("12345").roles("ADMIN","DBA");//dba have two roles.
     }
      
     @Override
     protected void configure(HttpSecurity http) throws Exception {
   
       http.authorizeRequests()
-        .antMatchers("/", "/rest/view/**").permitAll() 
-        .antMatchers("/rest/data/**").access("hasRole('ADMIN')")
-        .antMatchers("/db/**").access("hasRole('ADMIN') and hasRole('DBA')")
+        .antMatchers("/**", "/rest/view/**").permitAll() 
+//        .antMatchers("/rest/data/**").access("hasRole('ADMIN')")
+//        .antMatchers("/db/**").access("hasRole('ADMIN') and hasRole('DBA')")
         .and().formLogin()
         .and().exceptionHandling().accessDeniedPage("/Access_Denied");
   

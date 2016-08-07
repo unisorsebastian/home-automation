@@ -39,7 +39,7 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 //			"/dev/serial", // Linux
 //			"/dev/ttyACM0", // Linux
 			"/dev/ttyS80", // Linux
-			"COM5" // Windows
+			"COM3" // Windows
 	};
 	//@formatter:on		    
 	private static int counter = 0;
@@ -84,7 +84,16 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 					arduinoInputStream = serialPort.getInputStream();
 					isr = new InputStreamReader(arduinoInputStream);
 					br = new BufferedReader(isr);
+					char read = '\0';
 					inputLine = br.readLine();
+					//LOG.debug(inputLine);
+//					while ((read=(char)br.read()) != '\0') {
+//						sb.append(read);
+//						LOG.debug(sb);
+//					}
+//					while ((br.ready()) && (inputLine = br.readLine()) != null) {
+//						
+//					}
 				}
 				// inputLine = sb.toString();
 				LOG.info("received string from arduino:" + inputLine);
@@ -144,6 +153,10 @@ public class ArduinoSerialCommunicationImpl implements ArduinoSerialCommunicatio
 					if (currPortId.getName().equals(portName) || currPortId.getName().startsWith(portName)) {
 						LOG.debug("Open serial port");
 						serialPort = (SerialPort) currPortId.open(APP_NAME, TIME_OUT);
+						
+						serialPort.disableReceiveTimeout();
+						serialPort.enableReceiveThreshold(1);
+						
 						portId = currPortId;
 						LOG.info("Connected on port" + currPortId.getName());
 						break;

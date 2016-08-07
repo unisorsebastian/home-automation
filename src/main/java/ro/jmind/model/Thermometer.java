@@ -1,7 +1,11 @@
 package ro.jmind.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class Thermometer {
+	@JsonProperty(Global.NAME)
 	private String name;
+	@JsonProperty(Global.TEMPERATURE)
 	private Double temperature;
 	
 	

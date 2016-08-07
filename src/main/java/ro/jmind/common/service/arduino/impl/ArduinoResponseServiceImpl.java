@@ -22,10 +22,11 @@ import ro.jmind.common.service.arduino.ArduinoRequestService;
 import ro.jmind.common.service.arduino.ArduinoResponseService;
 import ro.jmind.model.ArduinoRequest;
 import ro.jmind.model.ArduinoResponse;
+import ro.jmind.model.Global;
 import ro.jmind.model.Thermometer;
 
 @Service
-public class ArduinoResponseServiceImpl implements ArduinoResponseService{
+public class ArduinoResponseServiceImpl implements ArduinoResponseService {
 	private static final Logger LOG = Logger.getLogger(ArduinoResponseServiceImpl.class);
 	private Map<ArduinoRequest, Object[]> arduinoResponseMap = new HashMap<>();
 	private static final int MAX_REQUEST_MAP_SIZE = 350;
@@ -55,12 +56,13 @@ public class ArduinoResponseServiceImpl implements ArduinoResponseService{
 
 	/**
 	 * adds response to map if the request was registered
-	 * */
+	 */
 	@Override
 	public void setResponse(ArduinoResponse response) {
-		if (arduinoResponseMap.containsKey(response.getArduinoRequest())) {
-			LOG.debug("add response to map, size is: " + arduinoResponseMap.size());
-			arduinoResponseMap.put(response.getArduinoRequest(), response.getResponse());
+		ArduinoRequest arduinoRequest = response.getArduinoRequest();
+		if (arduinoResponseMap.containsKey(arduinoRequest) || arduinoRequest.getRequestEntity().equals(Global.AUTO_STATUS)) {
+			LOG.debug("adding response to map, size is: " + arduinoResponseMap.size());
+			arduinoResponseMap.put(arduinoRequest, response.getResponse());
 		}
 
 	}
@@ -71,7 +73,7 @@ public class ArduinoResponseServiceImpl implements ArduinoResponseService{
 		try {
 			arduinoResponse = mapResponse(arduinoResponseString);
 		} catch (IOException e) {
-			LOG.error("unable to map arduino response", e);
+			LOG.error("unable to map arduino response:"+arduinoResponseString, e);
 		}
 		setResponse(arduinoResponse);
 
@@ -81,7 +83,6 @@ public class ArduinoResponseServiceImpl implements ArduinoResponseService{
 		arduinoResponseMap.put(arduinoRequest, null);
 	}
 
-	
 	private void clearMap() {
 		if (arduinoResponseMap.size() > MAX_REQUEST_MAP_SIZE) {
 			Set<ArduinoRequest> set = new TreeSet<>(new ArduinoRequestComparator());
@@ -95,8 +96,8 @@ public class ArduinoResponseServiceImpl implements ArduinoResponseService{
 				}
 				ArduinoRequest next = iterator.next();
 				boolean remove = arduinoResponseMap.remove(next, arduinoResponseMap.get(next));
-				LOG.info(remove+"->remove element from map:\n" + next);
-				//iterator.remove();
+				LOG.info(remove + "->remove element from map:\n" + next);
+				// iterator.remove();
 				i++;
 			}
 		}
@@ -109,7 +110,7 @@ public class ArduinoResponseServiceImpl implements ArduinoResponseService{
 		Thermometer[] responseArray = null;// response.getResponse();
 		SimpleModule module = new SimpleModule();
 		LOG.debug("entity is: " + requestEntity);
-		if (requestEntity.equalsIgnoreCase("thermometer")) {
+		if (requestEntity.equalsIgnoreCase(Global.THERMOMETER) || requestEntity.equalsIgnoreCase(Global.AUTO_STATUS) || requestEntity.equalsIgnoreCase(Global.THERMOX)) {
 			module.addDeserializer(Thermometer[].class, new ThermometerDeserializer());
 			mapper.registerModule(module);
 			responseArray = mapper.readValue(inputLine, Thermometer[].class);
@@ -117,7 +118,6 @@ public class ArduinoResponseServiceImpl implements ArduinoResponseService{
 		response.setResponse(responseArray);
 		return response;
 	}
-
 
 }
 

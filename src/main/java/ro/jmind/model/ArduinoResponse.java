@@ -2,8 +2,12 @@ package ro.jmind.model;
 
 import java.util.Arrays;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class ArduinoResponse {
+	@JsonProperty(Global.ARDUINO_REQUEST)
 	private ArduinoRequest arduinoRequest;
+	@JsonProperty(Global.RESPONSE)
 	private Object[] response;
 
 	public ArduinoRequest getArduinoRequest() {

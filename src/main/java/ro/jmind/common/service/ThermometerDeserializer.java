@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 
+import ro.jmind.model.Global;
 import ro.jmind.model.Thermometer;
 
 public class ThermometerDeserializer extends JsonDeserializer<Thermometer[]> {
@@ -18,7 +19,7 @@ public class ThermometerDeserializer extends JsonDeserializer<Thermometer[]> {
     public Thermometer[] deserialize(JsonParser jp, DeserializationContext ctxt) 
       throws IOException, JsonProcessingException {
         JsonNode node = jp.getCodec().readTree(jp);
-        String tempArrayAsString = ((ArrayNode) node.get("response")).toString();
+        String tempArrayAsString = ((ArrayNode) node.get(Global.RESPONSE)).toString();
         ObjectMapper mapper = new ObjectMapper();
         Thermometer[] response = mapper.readValue(tempArrayAsString, Thermometer[].class);
         return response;

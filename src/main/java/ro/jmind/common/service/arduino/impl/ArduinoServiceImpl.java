@@ -12,6 +12,7 @@ import ro.jmind.common.service.arduino.ArduinoRequestService;
 import ro.jmind.common.service.arduino.ArduinoResponseService;
 import ro.jmind.common.service.arduino.ArduinoService;
 import ro.jmind.model.ArduinoRequest;
+import ro.jmind.model.Global;
 import ro.jmind.model.Thermometer;
 
 @Service
@@ -37,7 +38,7 @@ public class ArduinoServiceImpl implements ArduinoService {
 		Object[] result = null;
 
 		ArduinoRequest arduinoRequest = new ArduinoRequest();
-		arduinoRequest.setRequestEntity("thermometer");
+		arduinoRequest.setRequestEntity(Global.THERMOMETER);
 		arduinoRequest.setTimestamp(System.currentTimeMillis());
 
 		result = arduinoResponseService.getResponse(arduinoRequest);
